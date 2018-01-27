@@ -146,15 +146,17 @@ core::create(){
 
     # if we're on zfs, make a new filesystem
     zfs::make_dataset "${VM_DS_ZFS_DATASET}/${_name}" "${_zfs_opts}"
+    iscsi::make_dataset "${vm_dir}" "${_name}" "${_zfs_opts}"
 
-    [ ! -d "${VM_DS_PATH}/${_name}" ] && mkdir "${VM_DS_PATH}/${_name}" >/dev/null 2>&1
+    [ ! -d "${VM_DS_PATH}/${_name}" -a "${VM_DS_ZFS}" = "1" ] && mkdir "${VM_DS_PATH}/${_name}" >/dev/null 2>&1
     [ ! -d "${VM_DS_PATH}/${_name}" ] && util::err "unable to create virtual machine directory ${VM_DS_PATH}/${_name}"
 
     cp "${vm_dir}/.templates/${_template}.conf" "${VM_DS_PATH}/${_name}/${_name}.conf"
     [ $? -ne 0 ] && util::err "unable to copy template to virtual machine directory"
 
     # generate a uuid
-    config::set "${_name}" "uuid" $(uuidgen)
+    _uuid=$(uuidgen)
+    config::set "${_name}" "uuid" ${_uuid}
 
     # get any zvol options
     config::get "_zfs_opts" "zfs_zvol_opts"
@@ -166,10 +168,12 @@ core::create(){
     while [ -n "${_disk}" ]; do
         case "${_disk_dev}" in 
             zvol)
-                zfs::make_zvol "${VM_DS_ZFS_DATASET}/${_name}/${_disk}" "${_disk_size}" "0" "${_zfs_opts}"
-                ;;			
+                [ "${VM_DS_ZFS}" = "1" ] && zfs::make_zvol "${VM_DS_ZFS_DATASET}/${_name}/${_disk}" "${_disk_size}" "0" "${_zfs_opts}"
+                [ "${VM_DS_ISCSI}" = "1" ] && iscsi::make_zvol "${VM_DS_ZFS_DATASET}/${_name}/${_disk}" "${_disk_size}" "0" "${_zfs_opts}"
+                ;;
             sparse-zvol)
-                zfs::make_zvol "${VM_DS_ZFS_DATASET}/${_name}/${_disk}" "${_disk_size}" "1" "${_zfs_opts}"
+                [ "${VM_DS_ZFS}" = "1" ] && zfs::make_zvol "${VM_DS_ZFS_DATASET}/${_name}/${_disk}" "${_disk_size}" "1" "${_zfs_opts}"
+                [ "${VM_DS_ISCSI}" = "1" ] && iscsi::make_zvol "${VM_DS_ZFS_DATASET}/${_name}/${_disk}" "${_disk_size}" "1" "${_zfs_opts}"
                 ;;
             *)
                 truncate -s "${_disk_size}" "${VM_DS_PATH}/${_name}/${_disk}"
@@ -541,6 +545,7 @@ core::destroy(){
 
     util::confirm "Are you sure you want to completely remove this virtual machine" || exit 0
     zfs::destroy_dataset "${VM_DS_ZFS_DATASET}/${_name}"
+    iscsi::destroy_dataset "${VM_DS_PATH}" "${_name}"
     [ -e "${VM_DS_PATH}/${_name}" ] && rm -R "${VM_DS_PATH}/${_name}"
 }
 

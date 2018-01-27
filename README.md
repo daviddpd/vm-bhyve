@@ -16,6 +16,8 @@ Some of the main features include:
 * Designed with multiple compute nodes + shared storage in mind (NFS/iSCSI/etc)
 * Multiple datastores (1.1 only)
 * VNC graphics & tmux support (1.1 only. See wiki for instructions)
+* iSCSI Support (hypervisor connecting block devices)
+* integration with iXsystem's FreeNAS and TrueNAS for iSCSI datastore (via additional api scripts)
 
 ##### See the GitHub wiki for more information and examples.
 

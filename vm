@@ -23,7 +23,6 @@
 # STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
 # IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-
 VERSION=1.2-beta
 VERSION_INT=102040
 VERSION_BSD=$(uname -K)
@@ -59,6 +58,7 @@ fi
 . "${LIB}/vm-switch-vxlan"
 . "${LIB}/vm-util"
 . "${LIB}/vm-zfs"
+. "${LIB}/vm-iscsi"
 
 # check informational commands
 cmd::parse_info $@
@@ -72,9 +72,11 @@ util::check_bhyve_support
 
 # init for zfs
 zfs::init
+iscsi::init
+
 
 # create directories as needed
-[ ! -d "${vm_dir}" ] && util::err "\$vm_dir has not been configured or is not a valid directory"
+[ ! -d "${vm_dir}" ] && util::err "\$vm_dir ($vm_dir) has not been configured or is not a valid directory"
 [ ! -d "${vm_dir}/.config" ] && mkdir "${vm_dir}/.config"
 [ ! -e "${vm_dir}/.config/null.iso" ] && touch "${vm_dir}/.config/null.iso"
 [ ! -d "${vm_dir}/.templates" ] && mkdir "${vm_dir}/.templates"

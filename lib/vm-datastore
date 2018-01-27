@@ -28,20 +28,24 @@
 # show configured datastores
 #
 datastore::list(){
-    local _format="%-15s %-11s %-25s %s"
+    local _format="%-15s %-11s %-24s %s"
     local _name _type _dataset _path _spec
-
     # headings
-    printf "${_format}\n" "NAME" "TYPE" "PATH" "ZFS DATASET"
+    printf "${_format}\n" "NAME" "TYPE" "PATH" "DATASET/Target"
 
     # add the default datastore
     _name="default"
     _path="${vm_dir}"
 
     # get the type and path
-    if [ "${VM_ZFS}" ]; then
+    if [ "${VM_ZFS}" = "1" ]; then
         _type="zfs"
         _dataset="${VM_ZFS_DATASET}"
+    elif [ "${VM_ISCSI}" = "1" ]; then
+        iscsi::parts "${VM_DIR_ISCSI}"
+#        _type="iscsi"
+        _path="confdir:${_configdir}"
+        _dataset="${_host}:${_iqn}"
     else
         _type="directory"
         _dataset="-"
@@ -63,6 +67,11 @@ datastore::list(){
             _type="iso"
             _path="${_spec#*:}"
             _dataset="-"
+        elif [ "${_spec%%:*}" = "iscsi" ]; then
+            iscsi::parts ${_spec}
+            #_type="iscsi"
+            _path="confdir:${_configdir}"
+            _dataset="${_host}:${_iqn}"
         else
             _type="directory"
             _path="${_spec}"
@@ -100,10 +109,15 @@ datastore::add(){
         # try to find mountpoint
         _mount=$(mount | grep "^${_spec#*:} " |cut -d' ' -f3)
         [ -z "${_mount}" ] && util::err "${_spec} doesn't seem to be a valid, mounted dataset"
+    elif [ "${_spec%%:*}" = "iscsi" ]; then
+        # try to find mountpoint
+        #_mount=$(mount | grep "^${_spec#*:} " |cut -d' ' -f3)
+        #[ -z "${_mount}" ] && util::err "${_spec} doesn't seem to be a valid, mounted dataset"
+         iscsi::parts ${_spec}
+        _mount="${_spec}"
     else
         # make sure it's a directory
         [ ! -d "${_spec}" ] && util::err "${_spec} doesn't seem to be a valid directory"
-
         _mount="${_spec}"
     fi
 
@@ -157,6 +171,9 @@ datastore::__resolve_path(){
             setvar "${_var}" "${_mount}"
             return 0
         fi
+    elif [ "${_spec%%:*}" = "iscsi" ]; then
+        setvar "${_var}" "${_spec#*:}"
+        return 0
     elif [ "${_spec%%:*}" = "iso" ]; then
         setvar "${_var}" "${_spec#*:}"
         return 0
@@ -199,6 +216,7 @@ datastore::get_guest(){
         _ds="default"
         _path="${vm_dir}"
         _zfs="${VM_ZFS}"
+        _iscsi="${VM_ISCSI}"
         _dataset="${VM_ZFS_DATASET}"
     fi
 
@@ -244,10 +262,18 @@ datastore::get(){
 
     # check for default
     if [ "${_ds}" = "default" ]; then
-        VM_DS_NAME="default"
-        VM_DS_PATH="${vm_dir}"
-        VM_DS_ZFS="${VM_ZFS}"
-        VM_DS_ZFS_DATASET="${VM_ZFS_DATASET}"
+		[ "${VM_ZFS}" = "1" ] && _zfs="1" && _dataset="${_spec#*:}"
+		if [ "${VM_ISCSI}" = "1" ]; then
+			_iscsi="1"
+			_dataset="${_host}:${_iqn}"
+			_path="${_configdir}"
+		fi
+
+		VM_DS_NAME="${_ds}"
+		VM_DS_PATH="${_path}"
+		VM_DS_ZFS="${_zfs}"
+		VM_DS_ISCSI="${_iscsi}"
+		VM_DS_ZFS_DATASET="${_dataset}"
         return 0
     fi
 
@@ -256,14 +282,22 @@ datastore::get(){
 
     # don't find iso stores
     [ "${_spec%%:*}" = "iso" ] && return 1
+    _zfs="0"
+    _iscsi="0"
 
     datastore::__resolve_path "_path" "${_spec}" || return 1
     [ "${_spec%%:*}" = "zfs" ] && _zfs="1" && _dataset="${_spec#*:}"
-
+    if [ "${_spec%%:*}" = "iscsi" ]; then
+        iscsi::parts "${_spec}"
+        _iscsi="1"
+        _dataset="${_host}:${_iqn}"
+        _path="${_configdir}"
+    fi
     # set variables
     VM_DS_NAME="${_ds}"
     VM_DS_PATH="${_path}"
     VM_DS_ZFS="${_zfs}"
+    VM_DS_ISCSI="${_iscsi}"
     VM_DS_ZFS_DATASET="${_dataset}"
 }
 

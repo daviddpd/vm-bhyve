@@ -33,6 +33,10 @@ util::setup(){
     util::load_module "if_tap"
 
     sysctl net.link.tap.up_on_open=1 >/dev/null 2>&1
+
+    if [ checkyesno vm_datastore_iscsi ]; then
+        util::load_module "iscsi"
+    fi
 }
 
 # load a kernel module
