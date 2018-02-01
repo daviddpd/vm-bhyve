@@ -33,6 +33,13 @@ Not Yet Implemented
  * vm image destroy
  * CHAP login/secret is configured in the external API helpers, not via vm-bhyve 
 
+### Issues
+
+ * FreeBSD bhyve vm's must use extend logical block size of 512.
+ * zpools on the virtal block device in the guest, on the iSCSI lun, may fail mountroot with Error 5.  This seemed to go away, for no apparent reason.
+   Possible related to: https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=208882
+
+
 ### Configuration 
 
 Configuration options are subject to change - hopefully in order to simplify things!
