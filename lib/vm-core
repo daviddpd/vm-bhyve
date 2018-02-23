@@ -544,9 +544,17 @@ core::destroy(){
     vm::confirm_stopped "${_name}" || exit 1
 
     util::confirm "Are you sure you want to completely remove this virtual machine" || exit 0
-    zfs::destroy_dataset "${VM_DS_ZFS_DATASET}/${_name}"
-    iscsi::destroy_dataset "${VM_DS_PATH}" "${_name}"
-    [ -e "${VM_DS_PATH}/${_name}" ] && rm -R "${VM_DS_PATH}/${_name}"
+    if [ -n "${_name}" -a "${VM_DS_ZFS}" = "1" ]; then
+        zfs::destroy_dataset "${VM_DS_ZFS_DATASET}/${_name}"
+    elif [  -n "${_name}" -a "${VM_ISCSI}" = "1" ]; then
+        iscsi::destroy_dataset "${VM_DS_ZFS_DATASET}" "${_name}" 
+    fi
+    if [ $? -ne 0 ]; then
+        util::err "Failed to destroy ${_name}"
+    fi
+    if [ -e "${VM_DS_PATH}/${_name}" ]; then
+         rm -R "${VM_DS_PATH}/${_name}"
+    fi
 }
 
 # 'vm rename'

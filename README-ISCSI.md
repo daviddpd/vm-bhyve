@@ -1,4 +1,4 @@
-# WARNING : INITAL PUBLIC COMMITS
+# Caution - Still in development
 
 This code path is alpha quality, and might break other things. 
 Implementation is incomplete - not all datastore operations are supported. 
@@ -21,9 +21,9 @@ Things that are working:
  * creating/deleting "datasets" (the vm-bhyve text configuration files)
  * renaming dataset (the vm-bhyve text configuration files and directory)
  * "make_zvol", which means "vm create -d iscsi ..." works.
-
+ * vm destroy - will destroy all iSCSI config and zvol on the zpool on the remote NAS.
+ 
 Not Yet Implemented
- * vm destroy - doesn't call the APIs to delete the iSCSI block storage.
  * vm snapshot (of iscsi datastore)
  * vm rollback
  * vm clone
@@ -36,7 +36,8 @@ Not Yet Implemented
 ### Issues
 
  * FreeBSD bhyve vm's must use extend logical block size of 512.
- * zpools on the virtal block device in the guest, on the iSCSI lun, may fail mountroot with Error 5.  This seemed to go away, for no apparent reason.
+ * zpools on the virtual block device in the guest, on the iSCSI lun, may fail mountroot 
+   with Error 5.  This seemed to go away, for no apparent reason.
    Possible related to: https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=208882
 
 
@@ -44,7 +45,7 @@ Not Yet Implemented
 
 Configuration options are subject to change - hopefully in order to simplify things!
 
-The RFC 4173 iSCSI URI syntax isn't really correct of our use case.  
+The RFC 4173 iSCSI URI syntax isn't really correct for our use case.  
 
 So for this utility, we'll use a simplified version. 
     iscsi:<servername>:<basename>:<filesystem_path>
@@ -57,12 +58,16 @@ the following needs to be in the /etc/rc.conf.
     vm_enable="YES"
     vm_datastore_iscsi="YES"
 
-This is the configuration for the external tools to control the iSCSI API (this syntax will likely change)
-These are specific for the FreeNAS/TrueNAS integration:
+This is the configuration for the external tools to control the iSCSI API (this syntax will likely change, 
+but ideally will eventually be standardized - so other iSCSI NASes and APIs could be used.)
+
+These are specific for the FreeNAS/TrueNAS integration (and using this https://github.com/daviddpd/ixnas-api )
     
     vm_iscsi_binpath="/usr/home/dpd/ixnas-api/bin"
     vm_iscsi_bin_create_zol="create-zvol.py"
+    vm_iscsi_bin_destroy_zol="destroy-zvol.py"
     vm_iscsi_bin_create_target="create-iscsi.py"
+    vm_iscsi_bin_destroy_target="destroy-iscsi.py"
 
 Then for default datastore, the vm_dir spec looks like this:
 

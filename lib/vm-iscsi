@@ -165,12 +165,40 @@ iscsi::make_dataset(){
 # @param string _name name of the dataset to destroy
 #
 iscsi::destroy_dataset(){
-    local _name="$1"
+    local _ds="$1"
+    local _name="$2"
+    local _config="${vm_dir}/${_name}/${_name}.conf"
+    
+    
+    if [  -n "${_name}" -a "${VM_ISCSI}" = "1" ]; then
+        _num=0
+        while [ 1 ]; do
+            config::load "${_config}"
+            config::get "_disk" "disk${_num}_name"
+            config::get "_type" "disk${_num}_type"
+            [ -z "${_disk}" ] && break
 
-    if [  -n "${_name}" -a "${VM_ISCSI}" = "1" -a -d "${vm_iscsi_config}/${_name}" ]; then
-        rm -rf "${vm_iscsi_config}/${_name}" >/dev/null 2>&1
-        [ $? -ne 0 ] && util::err "failed to delete iSCSI config dir ${_name}"
+            iscsi::parts_make_zvol "${_ds}/${_name}/disk${_num}"
+            _host="${_iqn%%:*}"
+            _iqn="${_iqn##*:}"
+
+            /usr/bin/iscsictl -R -p "${_host}" -t "${_iqn}:${_vmname}-disk${_num}"
+            [ $? -ne 0 ] && util::err "failed to remove iSCSI target for ${_vmname}-disk${_num} (iscsictl)"
+
+            ${vm_iscsi_binpath}/${vm_iscsi_bin_destroy_target} --host "${_host}"  --vmname "${_vmname}" --name "${_vmname}-disk${_num}"
+            [ $? -ne 0 ] && util::err "failed to destroy ISCSI target ${_vmname}-${_disk} (vm_iscsi_bin_destroy_target)"
+
+            
+            ${vm_iscsi_binpath}/${vm_iscsi_bin_destroy_zol} --host "${_host}"  --vmname "${_vmname}" --name "${_vmname}-disk${_num}"
+            [ $? -ne 0 ] && util::err "failed to destroy ZVOL ${_vmname}-${_disk} (vm_iscsi_bin_destroy_zol)"
+
+            _num=$((_num + 1))
+        done
+        #rm -rf "${vm_iscsi_config}/${_name}" >/dev/null 2>&1
+        #[ $? -ne 0 ] && util::err "failed to delete iSCSI config dir ${_name}"
+        return 0
     fi
+    return 1
 }
 
 # rename a dataset
@@ -228,21 +256,23 @@ iscsi::make_zvol(){
 #    zfs::__format_options "_user_opts" "${_user_opts}"
 #    zfs create ${_opt} ${_size} -o volmode=dev ${_user_opts} "${_name}"
     ${vm_iscsi_binpath}/${vm_iscsi_bin_create_zol} --host "${_host}" --uuid "${_uuid}" --diskserial "${_diskserial}" --vmname "${_vmname}" --name "${_vmname}-${_disk}" --size "${_size}" ${_opt}
-    [ $? -ne 0 ] && util::err "failed to create new ZVOL ${_vmname}-${_disk}"
+    [ $? -ne 0 ] && util::err "failed to create new ZVOL ${_vmname}-${_disk} (vm_iscsi_bin_create_zol)"
     ${vm_iscsi_binpath}/${vm_iscsi_bin_create_target} --host "${_host}" --uuid "${_uuid}" --diskserial "${_diskserial}" --vmname "${_vmname}" --name "${_vmname}-${_disk}"
-    [ $? -ne 0 ] && util::err "failed to create ISCSI target ${_vmname}-${_disk}"
+    [ $? -ne 0 ] && util::err "failed to create ISCSI target ${_vmname}-${_disk} (vm_iscsi_bin_create_target)"
 #    iscsictl -A -p nas1 -t iqn.2005-08.com.ixsystems.iad1:testing1.iad1
     /usr/bin/iscsictl -A -p "${_host}" -t "${_iqn}:${_vmname}-${_disk}"
-    [ $? -ne 0 ] && util::err "failed to create ISCSI target ${_vmname}-${_disk}"
+    [ $? -ne 0 ] && util::err "failed to create ISCSI target ${_vmname}-${_disk} (iscsictl)"
     
     retry=5
     while [ ! -c "/dev/diskid/DISK-${_diskserial}" -a $retry -ne 0 ]; do
         retry=$(($retry-1))
-        util::warn "Waiting for iSCSI Target to connect ($retry) ..."
+        util::info "Waiting for iSCSI Target to connect ($retry) ..."
         sleep 1        
     done
     if [ ! -c "/dev/diskid/DISK-${_diskserial}" ]; then
         util::err "failed to connect to the iSCSI target ${_vmname}-${_disk}"
+    else
+        util::info "iSCSI Target to connected as /dev/diskid/DISK-${_diskserial}"
     fi
     
 }

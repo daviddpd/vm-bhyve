@@ -88,7 +88,9 @@ zfs::destroy_dataset(){
     if [ -n "${_name}" -a "${VM_DS_ZFS}" = "1" ]; then
         zfs destroy -rf "${_name}" >/dev/null 2>&1
         [ $? -ne 0 ] && util::err "failed to destroy ZFS dataset ${_name}"
+        return 0
     fi
+    return 1
 }
 
 # rename a dataset

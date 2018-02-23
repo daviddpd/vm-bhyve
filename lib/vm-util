@@ -214,6 +214,17 @@ util::warn(){
     echo "${0}: WARNING: $1" >&2
 }
 
+# info
+# display some information text
+#
+# @param string - the message to display
+#
+util::info(){
+    echo "${0}: $1" >&2
+}
+
+
+
 # log_rotate
 # simple rotation of log files
 # if we hit 1MB, which should cover a fair amount of history,
