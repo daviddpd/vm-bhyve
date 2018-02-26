@@ -158,6 +158,9 @@ vm::run(){
         exit 15
     fi
 
+    # has user specified wired memory in custom options?
+    echo "${_bhyve_options}" | grep "S" >/dev/null 2>&1 && _wiredmem=1
+
     # set cpu/memory and uuid in opts
     _opts="-c ${_cpu} -m ${_memory} ${_opts}"
     [ -n "${_uuid}" ] && _opts="${_opts} -U ${_uuid}"
@@ -546,6 +549,10 @@ vm::bhyve_device_networking(){
                         util::log "guest" "${_name}" "adding ${_tap} -> ${_sid} (${_switch} ${_member_type})"
                         ifconfig "${_sid}" "${_member_type}" "${_tap}" >/dev/null 2>&1
                         [ $? -ne 0 ] && util::log "guest" "${_name}" "failed to add ${_tap} to ${_sid}"
+
+                        util::log "guest" "${_name}" "bring up ${_tap} -> ${_sid} (${_switch} ${_member_type})"
+                        ifconfig "${_tap}" up >/dev/null 2>&1
+                        [ $? -ne 0 ] && util::log "guest" "${_name}" "failed to bring up ${_tap} in ${_sid}"
 
                         # set private if configured
                         switch::is_private "${_switch}" && ifconfig "${_sid}" "private" "${_tap}" >/dev/null 2>&1
