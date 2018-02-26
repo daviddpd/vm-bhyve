@@ -220,6 +220,55 @@ iscsi::rename_dataset(){
     fi
 }
 
+# mount an iSCSI LUN on FreeBSD hypervisor
+#
+
+iscsi::mount_lun(){
+    local _name="$1"
+    local _num="$2"
+
+    _vmname="$_name"
+
+    if [ -c "${_disk}" ]; then
+        return 0;
+    fi
+
+    config::load "${vm_iscsi_config}/${_name}/${_name}.conf"
+
+    config::get "_disk" "disk${_num}_name"
+    config::get "_type" "disk${_num}_type"
+    config::get "_diskserial" "disk${_num}_serial"
+
+    if [ -z "${_disk}" ]; then
+        util::err "can't figure out how to find the disk number ${_num} for ${_vmname}"
+    fi
+
+    iscsi::parts_make_zvol "${VM_DS_ZFS_DATASET}/${_name}/disk${_num}"
+    _host="${_iqn%%:*}"
+    _iqn="${_iqn##*:}"
+
+    # Force disconnect the iSCSI session - and silently fail. If it had previously failed, there
+    # might be a stale connection config laying around.
+    /usr/bin/iscsictl -R -p "${_host}" -t "${_iqn}:${_vmname}-disk${_num}" > /dev/null 2>&1
+
+    # Connect the iSCSI session
+    /usr/bin/iscsictl -A -p "${_host}" -t "${_iqn}:${_vmname}-${_disk}"
+    [ $? -ne 0 ] && util::err "failed to create ISCSI target ${_vmname}-${_disk} (iscsictl)"
+    sleep 0.2
+    retry=5
+    while [ ! -c "/dev/diskid/DISK-${_diskserial}" -a $retry -ne 0 ]; do
+        retry=$(($retry-1))
+        util::info "Waiting for iSCSI Target to connect ($retry) ..."
+        sleep 0.5
+    done
+    if [ ! -c "/dev/diskid/DISK-${_diskserial}" ]; then
+        util::err "failed to connect to the iSCSI target ${_vmname}-${_disk}"
+    else
+        util::info "iSCSI Target to connected as /dev/diskid/DISK-${_diskserial}"
+    fi
+
+}
+
 # make a zvol for a guest disk image
 #
 # @param string _name name of the zvol to create
@@ -251,30 +300,13 @@ iscsi::make_zvol(){
     config::set "${_vmname}" "${_disk}_dev" "custom"
     config::set "${_vmname}" "${_disk}_name" "/dev/diskid/DISK-${_diskserial}"
     config::set "${_vmname}" "${_disk}_serial" "${_diskserial}"
-    
-    
-#    zfs::__format_options "_user_opts" "${_user_opts}"
-#    zfs create ${_opt} ${_size} -o volmode=dev ${_user_opts} "${_name}"
+
     ${vm_iscsi_binpath}/${vm_iscsi_bin_create_zol} --host "${_host}" --uuid "${_uuid}" --diskserial "${_diskserial}" --vmname "${_vmname}" --name "${_vmname}-${_disk}" --size "${_size}" ${_opt}
     [ $? -ne 0 ] && util::err "failed to create new ZVOL ${_vmname}-${_disk} (vm_iscsi_bin_create_zol)"
     ${vm_iscsi_binpath}/${vm_iscsi_bin_create_target} --host "${_host}" --uuid "${_uuid}" --diskserial "${_diskserial}" --vmname "${_vmname}" --name "${_vmname}-${_disk}"
     [ $? -ne 0 ] && util::err "failed to create ISCSI target ${_vmname}-${_disk} (vm_iscsi_bin_create_target)"
-#    iscsictl -A -p nas1 -t iqn.2005-08.com.ixsystems.iad1:testing1.iad1
-    /usr/bin/iscsictl -A -p "${_host}" -t "${_iqn}:${_vmname}-${_disk}"
-    [ $? -ne 0 ] && util::err "failed to create ISCSI target ${_vmname}-${_disk} (iscsictl)"
-    
-    retry=5
-    while [ ! -c "/dev/diskid/DISK-${_diskserial}" -a $retry -ne 0 ]; do
-        retry=$(($retry-1))
-        util::info "Waiting for iSCSI Target to connect ($retry) ..."
-        sleep 1        
-    done
-    if [ ! -c "/dev/diskid/DISK-${_diskserial}" ]; then
-        util::err "failed to connect to the iSCSI target ${_vmname}-${_disk}"
-    else
-        util::info "iSCSI Target to connected as /dev/diskid/DISK-${_diskserial}"
-    fi
-    
+
+    iscsi::mount_lun()  "${_name}" "${_disknum}"
 }
 
 

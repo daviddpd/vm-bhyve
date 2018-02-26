@@ -410,6 +410,7 @@ vm::bhyve_device_disks(){
         fi
 
         vm::get_disk_path "_path" "${_name}" "${_disk}" "${_dev}"
+        util::checkyesno "${vm_datastore_iscsi}" && iscsi::mount_lun "${_name}" "${_num}"
 
         # ahci device and multi mode?
         if [ ${_ahci_limit} -gt 1 -a "${_type%%-*}" = "ahci" ]; then
