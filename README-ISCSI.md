@@ -39,7 +39,8 @@ Not Yet Implemented
  * zpools on the virtual block device in the guest, on the iSCSI lun, may fail mountroot 
    with Error 5.  This seemed to go away, for no apparent reason.
    Possible related to: https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=208882
-
+ * vm switch with shared system config - note that the bridgeX devices must have the "description" set. 
+        ifconfig bridge0 description vm-<switchname>  
 
 ### Configuration 
 
