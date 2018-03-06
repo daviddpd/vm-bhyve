@@ -168,12 +168,12 @@ core::create(){
     while [ -n "${_disk}" ]; do
         case "${_disk_dev}" in 
             zvol)
-                [ "${VM_DS_ZFS}" = "1" ] && zfs::make_zvol "${VM_DS_ZFS_DATASET}/${_name}/${_disk}" "${_disk_size}" "0" "${_zfs_opts}"
-                [ "${VM_DS_ISCSI}" = "1" ] && iscsi::make_zvol "${VM_DS_ZFS_DATASET}/${_name}/${_disk}" "${_disk_size}" "0" "${_zfs_opts}"
+                [ "${VM_ZFS}" = "1" ] && zfs::make_zvol "${VM_DS_ZFS_DATASET}/${_name}/${_disk}" "${_disk_size}" "0" "${_zfs_opts}"
+                [ "${VM_ISCSI}" = "1" ] && iscsi::make_zvol "${VM_DS_ZFS_DATASET}/${_name}/${_disk}" "${_disk_size}" "0" "${_zfs_opts}"
                 ;;
             sparse-zvol)
-                [ "${VM_DS_ZFS}" = "1" ] && zfs::make_zvol "${VM_DS_ZFS_DATASET}/${_name}/${_disk}" "${_disk_size}" "1" "${_zfs_opts}"
-                [ "${VM_DS_ISCSI}" = "1" ] && iscsi::make_zvol "${VM_DS_ZFS_DATASET}/${_name}/${_disk}" "${_disk_size}" "1" "${_zfs_opts}"
+                [ "${VM_ZFS}" = "1" ] && zfs::make_zvol "${VM_DS_ZFS_DATASET}/${_name}/${_disk}" "${_disk_size}" "1" "${_zfs_opts}"
+                [ "${VM_ISCSI}" = "1" ] && iscsi::make_zvol "${VM_DS_ZFS_DATASET}/${_name}/${_disk}" "${_disk_size}" "1" "${_zfs_opts}"
                 ;;
             *)
                 truncate -s "${_disk_size}" "${VM_DS_PATH}/${_name}/${_disk}"
@@ -264,11 +264,13 @@ core::add_disk(){
     # create the disk first, then update config if no problems
     case "${_device}" in
         zvol)
-            zfs::make_zvol "${VM_DS_ZFS_DATASET}/${_name}/disk${_num}" "${_size}" "0" "${_zfs_opts}"
+            [ "${VM_ZFS}" = "1" ] && zfs::make_zvol "${VM_DS_ZFS_DATASET}/${_name}/disk${_num}" "${_size}" "0" "${_zfs_opts}"
+            [ "${VM_ISCSI}" = "1" ] && iscsi::make_zvol "${VM_DS_ZFS_DATASET}/${_name}/disk${_num}" "${_size}" "0" "${_zfs_opts}"
             _diskname="disk${_num}"
             ;;
         sparse-zvol)
-            zfs::make_zvol "${VM_DS_ZFS_DATASET}/${_name}/disk${_num}" "${_size}" "1" "${_zfs_opts}"
+            [ "${VM_ZFS}" = "1" ]  && zfs::make_zvol "${VM_DS_ZFS_DATASET}/${_name}/disk${_num}" "${_size}" "1" "${_zfs_opts}"
+            [ "${VM_ISCSI}" = "1" ] && iscsi::make_zvol "${VM_DS_ZFS_DATASET}/${_name}/disk${_num}" "${_size}" "1" "${_zfs_opts}"
             _diskname="disk${_num}"
             ;;
         file)
@@ -281,11 +283,15 @@ core::add_disk(){
             ;;
     esac
 
-    # update configuration
-    config::set "${_name}" "disk${_num}_name" "${_diskname}"
+    if [ "${VM_ZFS}" = "1" ]; then
+        # update configuration
+        # iscsi updates the config in make_zvol.
+        config::set "${_name}" "disk${_num}_name" "${_diskname}"
+        config::set "${_name}" "disk${_num}_dev" "${_device}" "1"
+        [ $? -eq 0 ] || util::err "disk image created but errors while updating guest configuration"
+    fi
+
     config::set "${_name}" "disk${_num}_type" "${_emulation}" "1"
-    config::set "${_name}" "disk${_num}_dev" "${_device}" "1"
-    [ $? -eq 0 ] || util::err "disk image created but errors while updating guest configuration"
 }
 
 # add network interface to guest
