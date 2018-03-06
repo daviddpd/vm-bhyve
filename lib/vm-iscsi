@@ -183,7 +183,7 @@ iscsi::destroy_dataset(){
             _iqn="${_iqn##*:}"
 
             /usr/bin/iscsictl -R -p "${_host}" -t "${_iqn}:${_vmname}-disk${_num}"
-            [ $? -ne 0 ] && util::err "failed to remove iSCSI target for ${_vmname}-disk${_num} (iscsictl)"
+            # [ $? -ne 0 ] && util::warn "failed to remove iSCSI target for ${_vmname}-disk${_num} (iscsictl)"
 
             ${vm_iscsi_binpath}/${vm_iscsi_bin_destroy_target} --host "${_host}"  --vmname "${_vmname}" --name "${_vmname}-disk${_num}"
             [ $? -ne 0 ] && util::err "failed to destroy ISCSI target ${_vmname}-${_disk} (vm_iscsi_bin_destroy_target)"
