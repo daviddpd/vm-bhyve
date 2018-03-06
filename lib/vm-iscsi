@@ -237,7 +237,7 @@ iscsi::mount_lun(){
     
     _vmname="$_name"
 
-    if [ -c "${_disk}" ]; then
+    if [ -c "${_disk}" -a "${_connect}" = "1" ]; then
         return 0;
     fi
 
@@ -284,15 +284,15 @@ iscsi::mount_lun(){
 iscsi::connect_session(){
     local _name="$1"
     local _num="$2"
-    local _disconnet=1
-    local _connect=1
+    local _disconnect="1"
+    local _connect="1"
     iscsi::mount_lun "${_name}" "${_num}" "${_disconnect}"  "$_connect"
 }
 iscsi::disconnect_session(){ 
     local _name="$1"
     local _num="$2"
-    local _disconnet=1
-    local _connect=0
+    local _disconnect="1"
+    local _connect="0"
     iscsi::mount_lun "${_name}" "${_num}" "${_disconnect}"  "$_connect"
 }
 

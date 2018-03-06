@@ -279,9 +279,10 @@ vm::run(){
     _num=0
     while [ 1 ]; do
         config::get "_disk" "disk${_num}_name"
-        [ -z "${_disk}" -o -z "${_type}" ] && break
-        iscsi::disconnect_session "${_name}" "$_num"
-        _num=$((_num + 1))        
+        [ -z "${_disk}" ] && break
+        util::log "guest" "${_name}" " disconnecting iSCSI session disk ${_num}"
+        iscsi::disconnect_session "${_name}" "${_num}"
+        _num=$((_num + 1))
     done
     
     vm::unlock
