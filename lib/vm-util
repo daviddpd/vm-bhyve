@@ -34,7 +34,8 @@ util::setup(){
 
     sysctl net.link.tap.up_on_open=1 >/dev/null 2>&1
 
-    if [ checkyesno vm_datastore_iscsi ]; then
+    util::checkyesno "${vm_datastore_iscsi}"
+    if [ $? -eq 0 ]; then
         util::load_module "iscsi"
     fi
 }
