@@ -260,6 +260,7 @@ datastore::get(){
     local _ds="$1"
     local _spec _path _zfs _dataset
 
+    datastore::__resolve_path "_path" "${_spec}" 
     # check for default
     if [ "${_ds}" = "default" ]; then
 		[ "${VM_ZFS}" = "1" ] && _zfs="1" && _dataset="${_spec#*:}"
@@ -273,7 +274,11 @@ datastore::get(){
 		VM_DS_PATH="${_path}"
 		VM_DS_ZFS="${_zfs}"
 		VM_DS_ISCSI="${_iscsi}"
-		VM_DS_ZFS_DATASET="${_dataset}"
+		if [ -z "${_dataset}" ]; then 
+			VM_DS_ZFS_DATASET="${VM_ZFS_DATASET}"
+		else
+			VM_DS_ZFS_DATASET="${_dataset}"
+		fi
         return 0
     fi
 
